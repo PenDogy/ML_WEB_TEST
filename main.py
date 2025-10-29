@@ -5,19 +5,15 @@ from fastapi.responses import FileResponse, JSONResponse
 import pandas as pd
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.metrics import accuracy_score
 import matplotlib.pyplot as plt
 import io, base64, os
 
 app = FastAPI()
 
-# กำหนดค่า CORS
-origins = [
-    "https://sites.google.com",  # Google Sites
-    "https://*.google.com",      # ถ้าต้องการรองรับ subdomains อื่น ๆ ของ Google
-    "*",                         # หรือ "*" เพื่ออนุญาตทุก origin (ไม่ปลอดภัยสำหรับ production)
-]
-# CORS
+# =============================
+# ✅ CORS (อนุญาตทุก Origin สำหรับทดสอบ)
+# =============================
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -25,64 +21,68 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Serve frontend
+# =============================
+# ✅ Serve Frontend (ถ้ามี)
+# =============================
 frontend_path = os.path.join(os.path.dirname(__file__), "frontend")
-app.mount("/static", StaticFiles(directory=frontend_path), name="static")
+if os.path.exists(frontend_path):
+    app.mount("/static", StaticFiles(directory=frontend_path), name="static")
 
 @app.get("/")
 def index():
-    return FileResponse(os.path.join(frontend_path, "index.html"))
+    if os.path.exists(os.path.join(frontend_path, "index.html")):
+        return FileResponse(os.path.join(frontend_path, "index.html"))
+    return {"message": "FastAPI ML API is running 🚀"}
 
-# Global variables
+
+# =============================
+# ✅ Global Variables
+# =============================
 model = None
 model_features = None
 feature_names = None
-scaler_info = None
 
-# -------------------
-# Upload Excel & Train
-# -------------------
+
+# =============================
+# 📤 Upload Excel & Train Model
+# =============================
 @app.post("/upload_excel")
 async def upload_excel(file: UploadFile = File(...)):
-    global model, model_features, feature_names, scaler_info
+    global model, model_features, feature_names
     try:
         contents = await file.read()
 
+        # Read file
         if file.filename.endswith(".csv"):
             df = pd.read_csv(io.StringIO(contents.decode("utf-8")))
         else:
             df = pd.read_excel(io.BytesIO(contents))
 
+        # Check target
         if 'target' not in df.columns:
             return JSONResponse({"status": "error", "message": "ไม่มี column 'target'"})
 
-        # Check target distribution
+        # Distribution
         target_dist = df['target'].value_counts().to_dict()
         total = len(df)
         target_0_pct = (target_dist.get(0, 0) / total) * 100
         target_1_pct = (target_dist.get(1, 0) / total) * 100
 
-        # Separate features & target
+        # Separate features
         X = df.drop(columns=['target'])
         y = df['target']
-        
-        # Store original feature names
         feature_names = X.columns.tolist()
-
-        # Encode categorical
         X = pd.get_dummies(X)
         model_features = X.columns.tolist()
 
-        # Split data for validation
+        # Split data
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42, stratify=y if len(y.unique()) > 1 else None
         )
 
-        # Train XGBoost with better parameters
+        # Train XGBoost
         dtrain = xgb.DMatrix(X_train, label=y_train)
         dtest = xgb.DMatrix(X_test, label=y_test)
-
-        # Calculate scale_pos_weight for imbalanced data
         scale_pos_weight = target_dist.get(0, 1) / max(target_dist.get(1, 1), 1)
 
         params = {
@@ -98,8 +98,8 @@ async def upload_excel(file: UploadFile = File(...)):
 
         evals = [(dtrain, 'train'), (dtest, 'test')]
         model = xgb.train(
-            params, 
-            dtrain, 
+            params,
+            dtrain,
             num_boost_round=100,
             evals=evals,
             early_stopping_rounds=10,
@@ -135,12 +135,14 @@ async def upload_excel(file: UploadFile = File(...)):
             "scale_pos_weight": f"{scale_pos_weight:.2f}",
             "image": image_base64
         })
+
     except Exception as e:
         return JSONResponse({"status": "error", "message": str(e)})
 
-# -------------------
-# Get Features (for dynamic form)
-# -------------------
+
+# =============================
+# 📋 Get Features
+# =============================
 @app.get("/get_features")
 def get_features():
     global feature_names
@@ -148,42 +150,34 @@ def get_features():
         return JSONResponse({"status": "error", "message": "กรุณาอัปโหลดข้อมูลก่อน"})
     return JSONResponse({"status": "success", "features": feature_names})
 
-# -------------------
-# Prediction Endpoint
-# -------------------
+
+# =============================
+# 🔮 Predict Endpoint
+# =============================
 @app.post("/predict")
 async def predict(data: dict):
     global model, model_features, feature_names
-
     if model is None:
-        return JSONResponse({"status":"error","message":"กรุณาอัปโหลดข้อมูลและฝึกโมเดลก่อน"})
+        return JSONResponse({"status": "error", "message": "กรุณาอัปโหลดข้อมูลและฝึกโมเดลก่อน"})
 
     try:
-        # Create DataFrame with original feature names
         X = pd.DataFrame([data])
-
-        # Encode categorical (same as training)
         X = pd.get_dummies(X)
-
-        # Add missing columns with 0
         for col in model_features:
             if col not in X.columns:
                 X[col] = 0
-
-        # Ensure column order matches training
         X = X[model_features]
 
         dmatrix = xgb.DMatrix(X)
         pred_proba = model.predict(dmatrix)[0]
         pred_class = int(pred_proba > 0.5)
-
-        # Create readable message
         confidence = max(pred_proba, 1 - pred_proba) * 100
-        
-        if pred_class == 1:
-            message = f"ผลการทำนาย: Positive (1) | ความมั่นใจ: {confidence:.1f}%"
-        else:
-            message = f"ผลการทำนาย: Negative (0) | ความมั่นใจ: {confidence:.1f}%"
+
+        message = (
+            f"ผลการทำนาย: Positive (1) | ความมั่นใจ: {confidence:.1f}%"
+            if pred_class == 1 else
+            f"ผลการทำนาย: Negative (0) | ความมั่นใจ: {confidence:.1f}%"
+        )
 
         return JSONResponse({
             "status": "success",
@@ -192,5 +186,15 @@ async def predict(data: dict):
             "confidence": f"{confidence:.1f}%",
             "message": message
         })
+
     except Exception as e:
-        return JSONResponse({"status":"error","message": str(e)})
+        return JSONResponse({"status": "error", "message": str(e)})
+
+
+# =============================
+# 🚀 Run app (สำหรับ Railway)
+# =============================
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
