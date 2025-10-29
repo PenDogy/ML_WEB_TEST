@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+gunicorn
+pandas
+scikit-learn
+xgboost
+matplotlib
+python-multipart
+openpyxl

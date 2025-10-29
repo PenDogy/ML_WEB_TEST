@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XGBoost ML Platform</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(33, 150, 243, 0.15);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.95;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .section {
+            background: #fafafa;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            border: 1px solid #e3f2fd;
+        }
+
+        .section h2 {
+            color: #1976D2;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-weight: 600;
+            color: #424242;
+            font-size: 0.95em;
+        }
+
+        input[type="file"] {
+            padding: 12px;
+            border: 2px dashed #2196F3;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        input[type="file"]:hover {
+            border-color: #1976D2;
+            background: #e3f2fd;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #2196F3;
+            box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+        }
+
+        button {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            color: white;
+            border: none;
+            padding: 14px 30px;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            border: 2px solid #e3f2fd;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            border-color: #2196F3;
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.15);
+        }
+
+        .stat-card .label {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .stat-card .value {
+            font-size: 1.6em;
+            font-weight: bold;
+            color: #2196F3;
+        }
+
+        .result-box {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 2px solid #e3f2fd;
+        }
+
+        .result-box h3 {
+            color: #1976D2;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        #feature-img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            display: none;
+        }
+
+        #feature-img.show {
+            display: block;
+        }
+
+        #prediction-result {
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            font-size: 1.3em;
+            font-weight: 600;
+            text-align: center;
+            margin-top: 20px;
+            display: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        #prediction-result.show {
+            display: block;
+        }
+
+        #prediction-result.positive {
+            background: linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%);
+        }
+
+        #prediction-result.negative {
+            background: linear-gradient(135deg, #F44336 0%, #EF5350 100%);
+        }
+
+        #prediction-result.uncertain {
+            background: linear-gradient(135deg, #FF9800 0%, #FFA726 100%);
+        }
+
+        .confidence-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 10px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: white;
+            border-radius: 10px;
+            transition: width 0.5s ease;
+        }
+
+        .recommendation {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 8px;
+            font-size: 0.9em;
+            font-weight: normal;
+        }
+
+        .dynamic-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-top: 15px;
+            font-weight: 500;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .alert-success {
+            background: #E8F5E9;
+            color: #2E7D32;
+            border: 1px solid #A5D6A7;
+        }
+
+        .alert-error {
+            background: #FFEBEE;
+            color: #C62828;
+            border: 1px solid #EF9A9A;
+        }
+
+        .alert-warning {
+            background: #FFF3E0;
+            color: #E65100;
+            border: 1px solid #FFCC80;
+        }
+
+        #predict-section {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        #predict-section.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .info-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #E3F2FD;
+            color: #1976D2;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+            
+            .section {
+                padding: 20px;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 XGBoost ML Platform</h1>
+            <p>Advanced Machine Learning Prediction System</p>
+        </div>
+
+        <div class="content">
+            <div class="section">
+                <h2>📊 Upload Data & Train Model</h2>
+                <form id="upload-form" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label>Select Excel or CSV file <span class="info-badge">Must contain 'target' column</span></label>
+                        <input type="file" name="file" accept=".xlsx,.csv" required>
+                    </div>
+                    <button type="submit">
+                        <span class="btn-text">Upload & Train Model</span>
+                    </button>
+                </form>
+
+                <div id="model-stats" style="display:none;">
+                    <div class="stats-grid"></div>
+                </div>
+                
+                <div class="result-box">
+                    <h3>📈 Feature Importance Analysis</h3>
+                    <img id="feature-img" alt="Feature Importance Chart">
+                </div>
+            </div>
+
+            <div class="section" id="predict-section">
+                <h2>🎯 Make Prediction</h2>
+                <p style="color: #666; margin-bottom: 20px;">Please upload data first to enable prediction</p>
+                <form id="predict-form">
+                    <div id="dynamic-form-container" class="dynamic-form">
+                        <!-- Dynamic form fields will be inserted here -->
+                    </div>
+                    <button type="submit" disabled>
+                        <span class="btn-text">🎯 Predict Result</span>
+                    </button>
+                </form>
+                <div id="prediction-result"></div>
+            </div>
+        </div>
+    </div>
+
+<script>
+let modelTrained = false;
+
+document.getElementById("upload-form").addEventListener("submit", async function(e){
+    e.preventDefault();
+    const button = this.querySelector('button');
+    const btnText = button.querySelector('.btn-text');
+    const originalText = btnText.textContent;
+    
+    btnText.innerHTML = '<span class="loading"></span>Processing...';
+    button.disabled = true;
+    
+    const formData = new FormData();
+    const fileField = document.querySelector('input[type="file"]');
+    formData.append("file", fileField.files[0]);
+
+    try {
+        const res = await fetch("/upload_excel", { method: "POST", body: formData });
+        const data = await res.json();
+        
+        // Remove old alerts
+        this.querySelectorAll('.alert').forEach(el => el.remove());
+        
+        if(data.status === "success"){
+            // Show feature importance image
+            const img = document.getElementById("feature-img");
+            img.src = "data:image/png;base64," + data.image;
+            img.classList.add('show');
+            
+            // Show model statistics
+            const statsDiv = document.getElementById('model-stats');
+            const statsGrid = statsDiv.querySelector('.stats-grid');
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <div class="label">Total Rows</div>
+                    <div class="value">${data.rows}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Accuracy</div>
+                    <div class="value">${data.accuracy}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Negative Cases</div>
+                    <div class="value">${data.target_distribution['0']}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Positive Cases</div>
+                    <div class="value">${data.target_distribution['1']}</div>
+                </div>
+            `;
+            statsDiv.style.display = 'block';
+            
+            // Success alert
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-success';
+            alert.innerHTML = `✅ <strong>Model trained successfully!</strong><br>
+                Features: ${data.features.join(', ')}<br>
+                Scale Pos Weight: ${data.scale_pos_weight}`;
+            this.appendChild(alert);
+            
+            // Enable prediction form
+            modelTrained = true;
+            const predictSection = document.getElementById('predict-section');
+            predictSection.classList.add('active');
+            predictSection.querySelector('p').textContent = 'Enter feature values to make a prediction';
+            
+            // Create dynamic form
+            createDynamicForm(data.features);
+            
+            setTimeout(() => alert.remove(), 8000);
+        } else {
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-error';
+            alert.textContent = `❌ ${data.message}`;
+            this.appendChild(alert);
+            setTimeout(() => alert.remove(), 5000);
+        }
+    } catch(err) {
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-error';
+        alert.textContent = `❌ Error: ${err.message}`;
+        this.appendChild(alert);
+        setTimeout(() => alert.remove(), 5000);
+    } finally {
+        btnText.textContent = originalText;
+        button.disabled = false;
+    }
+});
+
+function createDynamicForm(features) {
+    const container = document.getElementById('dynamic-form-container');
+    container.innerHTML = '';
+    
+    features.forEach(feature => {
+        const formGroup = document.createElement('div');
+        formGroup.className = 'form-group';
+        formGroup.innerHTML = `
+            <label>${feature}:</label>
+            <input type="text" name="${feature}" placeholder="Enter ${feature}" required>
+        `;
+        container.appendChild(formGroup);
+    });
+    
+    // Enable submit button
+    document.querySelector('#predict-form button').disabled = false;
+}
+
+function getConfidenceLevel(confidence) {
+    const conf = parseFloat(confidence);
+    if (conf >= 90) return { level: 'Very High', class: 'positive' };
+    if (conf >= 70) return { level: 'High', class: 'positive' };
+    if (conf >= 60) return { level: 'Moderate', class: 'uncertain' };
+    return { level: 'Low', class: 'uncertain' };
+}
+
+function getRecommendation(prediction, confidence) {
+    const conf = parseFloat(confidence);
+    
+    if (prediction === 1) {
+        if (conf >= 80) return '⚠️ High probability of infection. Immediate testing recommended.';
+        if (conf >= 60) return '⚕️ Moderate risk detected. Consider medical consultation.';
+        return '📋 Low confidence. Monitor symptoms and retest if needed.';
+    } else {
+        if (conf >= 80) return '✅ Low risk of infection. Continue monitoring health.';
+        if (conf >= 60) return '📊 Moderate confidence. Stay vigilant for symptoms.';
+        return '⚠️ Uncertain result. Additional testing may be helpful.';
+    }
+}
+
+document.getElementById("predict-form").addEventListener("submit", async function(e){
+    e.preventDefault();
+    
+    if (!modelTrained) {
+        alert('Please upload data and train the model first');
+        return;
+    }
+    
+    const button = this.querySelector('button');
+    const btnText = button.querySelector('.btn-text');
+    const originalText = btnText.textContent;
+    
+    btnText.innerHTML = '<span class="loading"></span>Predicting...';
+    button.disabled = true;
+    
+    const formData = new FormData(e.target);
+    let data = {};
+    formData.forEach((value, key) => { 
+        const numValue = parseFloat(value);
+        data[key] = isNaN(numValue) ? value : numValue;
+    });
+
+    try {
+        const res = await fetch("/predict", {
+            method: "POST",
+            headers: {"Content-Type":"application/json"},
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        
+        const resultDiv = document.getElementById("prediction-result");
+        resultDiv.classList.remove('positive', 'negative', 'uncertain');
+        
+        if(result.status === "success"){
+            const confidence = parseFloat(result.confidence);
+            const confLevel = getConfidenceLevel(result.confidence);
+            const recommendation = getRecommendation(result.prediction, result.confidence);
+            
+            resultDiv.classList.add('show');
+            resultDiv.classList.add(result.prediction === 1 ? confLevel.class : 'negative');
+            
+            resultDiv.innerHTML = `
+                <div style="font-size: 1.8em; margin-bottom: 15px;">
+                    ${result.prediction === 1 ? '✅ POSITIVE' : '❌ NEGATIVE'}
+                </div>
+                <div style="font-size: 1em; opacity: 0.95; margin-bottom: 10px;">
+                    Confidence Level: <strong>${confLevel.level}</strong> (${result.confidence})
+                </div>
+                <div class="confidence-bar">
+                    <div class="confidence-fill" style="width: ${confidence}%"></div>
+                </div>
+                <div style="font-size: 0.9em; opacity: 0.9; margin-top: 10px;">
+                    Probability Score: ${(result.probability * 100).toFixed(1)}%
+                </div>
+                <div class="recommendation">
+                    ${recommendation}
+                </div>
+            `;
+        } else {
+            resultDiv.classList.add('show', 'negative');
+            resultDiv.textContent = `⚠️ ${result.message}`;
+        }
+    } catch(err) {
+        const resultDiv = document.getElementById("prediction-result");
+        resultDiv.classList.add('show', 'negative');
+        resultDiv.textContent = `❌ Error: ${err.message}`;
+    } finally {
+        btnText.textContent = originalText;
+        button.disabled = false;
+    }
+});
+</script>
+</body>
+</html>
